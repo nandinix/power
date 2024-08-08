@@ -9,70 +9,78 @@ from branca.element import Template, MacroElement
 from branca.colormap import linear
 from jinja2 import Template
 
-# add pop up for news, add option to view by score, add option for 10 year summary
 
-# Read the CSV files
-csv_file = 'PSVI_yearly.csv'
-df = pd.read_csv(csv_file)
+## DATA PROCESSING ##
 
-summary_file = 'PSVI_summary.csv'
-sdf = pd.read_csv(summary_file)
+yearbegin = 2014
+yearend = 2024 # not inclusive
 
-# Ensure FIPS codes are strings and pad with leading zeros to ensure 5 digits
-df['county'] = df['county'].astype(str).str.zfill(5)
-sdf['fips_code'] = sdf['fips_code'].astype(str).str.zfill(5)
+# # Read the CSV files
+# csv_file = 'PSVI_yearly.csv'
+# df = pd.read_csv(csv_file)
 
-# Map categories to numeric values
-category_map = {'Minor': 1, 'Moderate': 2, 'Major': 3, 'Severe': 4, 'Extreme': 5}
+# summary_file = 'PSVI_summary.csv'
+# sdf = pd.read_csv(summary_file)
 
-# Apply the mapping to the relevant columns
-for year in range(2014, 2024):
-    df[f'{year}_rate_numeric'] = df[f'{year}_rate'].map(category_map)
+# # Ensure FIPS codes are strings and pad with leading zeros to ensure 5 digits
+# df['county'] = df['county'].astype(str).str.zfill(5)
+# sdf['fips_code'] = sdf['fips_code'].astype(str).str.zfill(5)
 
-sdf['summary_numeric'] = sdf['PSVI_cluster'].map(category_map)
+# # Map categories to numeric values
+# category_map = {'Minor': 1, 'Moderate': 2, 'Major': 3, 'Severe': 4, 'Extreme': 5}
 
-# Display the first few rows to verify the changes
-print(df.head())
-print(sdf.head())
+# # Apply the mapping to the relevant columns
+# for year in range(yearbegin, yearend):
+#     df[f'{year}_rn'] = df[f'{year}_rate'].map(category_map)
 
-shapefile = 'UScounties/UScounties.shp'
-gdf = gpd.read_file(shapefile)
+# sdf['sum_rn'] = sdf['PSVI_cluster'].map(category_map)
 
+# # Display the first few rows to verify the changes
+# print(df.head())
+# print(sdf.head())
 
+# shapefile = 'UScounties/UScounties.shp'
+# gdf = gpd.read_file(shapefile)
 
-# Taking out Alaska and Hawaii
-states_to_exclude = ['Alaska', 'Hawaii']
-filtered_gdf = gdf[~gdf['STATE_NAME'].isin(states_to_exclude)]
+# # Taking out Alaska and Hawaii
+# states_to_exclude = ['Alaska', 'Hawaii']
+# filtered_gdf = gdf[~gdf['STATE_NAME'].isin(states_to_exclude)]
 
-# Ensure the FIPS code columns in both DataFrames have the same name
-df.rename(columns={'county': 'FIPS'}, inplace=True)  # Rename if necessary
-sdf.rename(columns={'fips_code': 'FIPS'}, inplace=True)  # Rename if necessary
+# # Ensure the FIPS code columns in both DataFrames have the same name
+# df.rename(columns={'county': 'FIPS'}, inplace=True)  # Rename if necessary
+# sdf.rename(columns={'fips_code': 'FIPS'}, inplace=True)  # Rename if necessary
 
-# Convert the FIPS code to the same type (string) in both DataFrames
-df['FIPS'] = df['FIPS'].astype(str)
-sdf['FIPS'] = sdf['FIPS'].astype(str)
-gdf['FIPS'] = gdf['FIPS'].astype(str)
-
-
-# Perform a left merge to keep all entries from the shapefile
-merged_gdf = filtered_gdf.merge(df, on='FIPS', how='left')
-merged_gdf = merged_gdf.merge(sdf, on='FIPS', how='left')
+# # Convert the FIPS code to the same type (string) in both DataFrames
+# df['FIPS'] = df['FIPS'].astype(str)
+# sdf['FIPS'] = sdf['FIPS'].astype(str)
+# gdf['FIPS'] = gdf['FIPS'].astype(str)
 
 
-# Fill missing values in the 'rate' and 'score' columns with "N/A"
-for year in range(2014, 2024):
-    merged_gdf[f'{year}_rate'] = merged_gdf[f'{year}_rate'].fillna("No Data")
-    merged_gdf[f'{year}_score'] = merged_gdf[f'{year}_score'].fillna(0)
-    merged_gdf[f'{year}_rate_numeric'] = merged_gdf[f'{year}_rate_numeric'].fillna(0)
+# # Perform a left merge to keep all entries from the shapefile
+# merged_gdf = filtered_gdf.merge(df, on='FIPS', how='left')
+# merged_gdf = merged_gdf.merge(sdf, on='FIPS', how='left')
 
-merged_gdf['PSVI_score'] = merged_gdf['PSVI_score'].fillna(0)
-merged_gdf['PSVI_cluster'] = merged_gdf['PSVI_cluster'].fillna("No Data")
-merged_gdf['summary_numeric'] = merged_gdf['summary_numeric'].fillna(0)
+
+# # Fill missing values in the 'rate' and 'score' columns with "N/A"
+# for year in range(yearbegin, yearend):
+#     merged_gdf[f'{year}_rate'] = merged_gdf[f'{year}_rate'].fillna("No Data")
+#     merged_gdf[f'{year}_score'] = merged_gdf[f'{year}_score'].fillna(0)
+#     merged_gdf[f'{year}_rn'] = merged_gdf[f'{year}_rn'].fillna(0)
+
+# merged_gdf['PSVI_score'] = merged_gdf['PSVI_score'].fillna(0)
+# merged_gdf['PSVI_cluster'] = merged_gdf['PSVI_cluster'].fillna("No Data")
+# merged_gdf['sum_rn'] = merged_gdf['sum_rn'].fillna(0)
     
-print(merged_gdf.head())
+# print(merged_gdf.head())
 
-# Save the merged GeoDataFrame to a new shapefile
-merged_gdf.to_file('path_to_new_shapefile.shp')
+# # Save the merged GeoDataFrame to a new shapefile
+# merged_gdf.to_file('powerdata/powerdata.shp')
+
+powerfile = 'powerdata/powerdata.shp'
+powergdf = gpd.read_file(powerfile)
+# print(powergdf.columns)
+
+## CREATING MAP ##
 
 powermap = folium.Map(location=[37.8, -96], zoom_start=5, zoom_control=False)
 
@@ -149,14 +157,14 @@ def add_geojsonscore(map_obj, geo_df, year, column, layer_name):
     ).add_to(map_obj)
 
 # Add layers for each year
-for year in range(2014, 2024):
-    add_geojsoncluster(powermap, merged_gdf, year, f'{year}_rate_numeric', f'{year}')
-    # add_geojsonscore(powermap, merged_gdf, year, f'{year}_score', f'{year} Score')
+for year in range(yearbegin, yearend):
+    add_geojsoncluster(powermap, powergdf, year, f'{year}_rn', f'{year}')
+    # add_geojsonscore(powermap, powergdf, year, f'{year}_score', f'{year} Score')
 
 
 # Add layer for 10 year summary
 style_function = lambda feature: {
-        'fillColor': get_color(feature['properties']['summary_numeric']),
+        'fillColor': get_color(feature['properties']['sum_rn']),
         'color': 'black',
         'weight': 0.2,
         'fillOpacity': 0.9
@@ -170,13 +178,13 @@ highlight_function = lambda feature: {
     }
 
 folium.GeoJson(
-        merged_gdf,
+        powergdf,
         name='10 year summary',
         style_function=style_function,
         highlight_function=highlight_function,
         # on_each_feature=on_each_feature(feature, layer),
         tooltip=folium.GeoJsonTooltip(
-            fields=['NAME', 'PSVI_score', 'PSVI_cluster'],
+            fields=['NAME', 'PSVI_score', 'PSVI_clust'],
             aliases=['County:', 'Score:', 'Cluster:'],
             localize=True
         )
