@@ -82,18 +82,18 @@ powergdf = gpd.read_file(powerfile)
 
 ## CREATING MAP ##
 
-powermap = folium.Map(location=[37.8, -96], zoom_start=5, zoom_control=False)
+powermap = folium.Map(location=[37.8, -96], tiles="Cartodb Positron", zoom_start=5, zoom_control=False)
 
 
 # Define color scale
 def get_color(value):
     colors = {
-        1: '#FFFEAF', # minor
-        2: '#FECB5B', # moderate
-        3: '#FD8D3B', # major
-        4: '#F0482D', # severe
-        5: '#C20424', # extreme
-        0: '#EAEADC' # no data
+        1: '#546CB8', # minor
+        2: '#6399C3', # moderate
+        3: '#ECD670', # major
+        4: '#D2766D', # severe
+        5: '#B84E5F', # extreme
+        0: '#CCCCCC' # no data
     }
     return colors.get(value, '#d9d9d9')
 
@@ -192,57 +192,138 @@ folium.GeoJson(
 
 
 
-# Custom JavaScript for radio buttons in LayerControl
+# # Custom JavaScript for radio buttons in LayerControl
+# script = """
+# <script>
+# document.addEventListener('DOMContentLoaded', function() {
+#     var layerControlInputs = document.querySelectorAll('.leaflet-control-layers-selector');
+#     layerControlInputs.forEach(function(input) {
+#         if (input.type === 'checkbox') {
+#             input.type = 'radio';
+#             input.name = 'leaflet-base-layers';
+#         }
+#     });
+    
+# });
+# </script>
+# """
+
+# # Add custom script to the map
+# powermap.get_root().html.add_child(folium.Element(script))
+
+
 script = """
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    var layerControlInputs = document.querySelectorAll('.leaflet-control-layers-selector');
-    layerControlInputs.forEach(function(input) {
-        if (input.type === 'checkbox') {
-            input.type = 'radio';
-            input.name = 'leaflet-base-layers';
-        }
-    });
+function updateMap() {
+    var selectedYear = document.getElementById('year-select').value;
+    var layers = map._layers;
     
-});
+    // Loop through the layers and toggle visibility based on the selected year
+    for (var layer in layers) {
+        if (layers[layer].options && layers[layer].options.name) {
+            var layerName = layers[layer].options.name;
+            if (layerName.includes(selectedYear)) {
+                layers[layer].addTo(map);
+            } else {
+                map.removeLayer(layers[layer]);
+            }
+        }
+    }
+}
 </script>
 """
 
-
-# Add custom script to the map
-powermap.get_root().html.add_child(folium.Element(script))
-
-# Create a legend as a macro element
-legend_html = """
-<div style="
+year_dropdown = """
+<div id="year-dropdown" style="
     position: fixed; 
-    bottom: 30px; 
-    right: 30px; 
-    width: 150px; 
-    height: 150px; 
-    background-color: white; 
-    border:2px solid grey; 
-    border-radius:5px;
-    z-index:9999; 
-    font-size:10px;
-    padding: 10px;
-    ">
-    <b>Legend</b> <br>
-    <i style="background: #EAEADC; width: 15px; height: 15px; display: inline-block;"></i> No Data <br>
-    <i style="background: #FFFEAF; width: 15px; height: 15px; display: inline-block;"></i> Minor <br>
-    <i style="background: #FECB5B; width: 15px; height: 15px; display: inline-block;"></i> Moderate <br>
-    <i style="background: #FD8D3B; width: 15px; height: 15px; display: inline-block;"></i> Major <br>
-    <i style="background: #F0482D; width: 15px; height: 15px; display: inline-block;"></i> Severe <br>
-    <i style="background: #C20424; width: 15px; height: 15px; display: inline-block;"></i> Extreme <br>
+    top: 250px; 
+    left: 20px; 
+    z-index: 9999; 
+    background: white; 
+    border: 1px solid #ccc; 
+    border-radius: 5px; 
+    padding: 10px;">
+    <label for="year-select">Select Year:</label>
+    <select id="year-select" onchange="updateMap()">
+        {% for year in range(""" + str(yearbegin) + ", " + str(yearend) + """) %}
+        <option value="{{ year }}">{{ year }}</option>
+        {% endfor %}
+    </select>
 </div>
 """
 
-# Add the legend to the map using DivIcon
-legend = folium.DivIcon(
-    icon_size=(150, 150),
-    icon_anchor=(0, 0),
-    html=legend_html,
-)
+powermap.get_root().html.add_child(folium.Element(year_dropdown))
+powermap.get_root().html.add_child(folium.Element(script))
+
+
+# Create a legend as a macro element
+legend_html = """
+<div id="map-legend" class="legend">
+    <h4>PSVI Cluster</h4>
+    <div class="legend-item">
+        <i style="background: #d73027;"></i><span>Extreme</span>
+    </div>
+    <div class="legend-item">
+        <i style="background: #fc8d59;"></i><span>Severe</span>
+    </div>
+    <div class="legend-item">
+        <i style="background: #fee08b;"></i><span>Major</span>
+    </div>
+    <div class="legend-item">
+        <i style="background: #91bfdb;"></i><span>Moderate</span>
+    </div>
+    <div class="legend-item">
+        <i style="background: #4575b4;"></i><span>Minor</span>
+    </div>
+    <div class="legend-item">
+        <i style="background: #f0f0f0;"></i><span>No data</span>
+    </div>
+</div>
+
+<style>
+    #map-legend {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        z-index: 9999;
+        background: white;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+        line-height: 18px;
+        color: #555;
+        font-size: 14px;
+        font-family: 'Arial', sans-serif;
+        width: 150px;
+    }
+
+    #map-legend h4 {
+        margin: 0 0 10px;
+        font-weight: bold;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+
+    .legend-item i {
+        width: 18px;
+        height: 18px;
+        display: inline-block;
+        margin-right: 8px;
+        border: 1px solid #999;
+        border-radius: 3px;
+    }
+
+    .legend-item span {
+        font-size: 13px;
+        color: #333;
+    }
+</style>
+"""
 
 legend_element = folium.Element(legend_html)
 powermap.get_root().html.add_child(legend_element)
@@ -251,7 +332,7 @@ powermap.get_root().html.add_child(legend_element)
 popup_html = """
 <div class="custom-popup" style="
     position: fixed; 
-    top: 20px; 
+    top: 150px; 
     left: 20px; 
     background-color: white; 
     border: 1px solid #ccc; 
@@ -285,7 +366,7 @@ popup_html = """
 <button id="showPopupButton" onclick="togglePopup()" style="
     display: none; 
     position: fixed; 
-    top: 20px; 
+    top: 200px; 
     left: 20px; 
     background: #007bff; 
     color: white; 
@@ -317,8 +398,70 @@ popup = folium.Element(popup_html)
 powermap.get_root().html.add_child(popup)
 
 
+# Create a custom HTML element for the header
+header_html = """
+<div style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: #383838;
+    border-bottom: 2px solid #cccccc;
+    z-index: 9999;
+    padding: 10px 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: Arial, sans-serif;
+">
+    <div style="display: flex; align-items: center;">
+        <h1 style="margin: 30px; font-size: 30px; color: #e1e1e1;"><strong>Power System Vulnerability Index</strong></h1>
+    </div>
+    <div style="display: flex; align-items: center;">
+        <a href="URL_TO_LAB_WEBSITE" style="
+            background-color: transparent;
+            color: #ffffff;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 16px;
+            margin-right: 30px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        "
+        onmouseover="this.style.backgroundColor='#e1e1e1'; this.style.color='#000000';"
+        onmouseout="this.style.backgroundColor='transparent'; this.style.color='#e1e1e1';"
+        >About Us</a>
+        <img src="URL_TO_LAB_LOGO" alt="Lab Logo" style="height: 80px; margin-right: 20px;">
+        
+    </div>
+</div>
+"""
+
+# Replace URL_TO_UNIVERSITY_LOGO and URL_TO_LAB_LOGO with actual URLs of your logos
+header_html = header_html.replace("URL_TO_UNIVERSITY_LOGO", "images/civillogo.png")
+header_html = header_html.replace("URL_TO_LAB_LOGO", "images/URAIlogo.png") # Replace with actual lab logo URL
+header_html = header_html.replace("URL_TO_LAB_WEBSITE", "https://www.urbanresilience.ai/")
+
+# Add the header to the map
+header = folium.Element(header_html)
+powermap.get_root().html.add_child(header)
+
+# # Add some CSS to create padding for the header
+# padding_css = """
+# <style>
+#     #map {
+#         padding-top: 200px; /* Adjust based on your header height */
+#     }
+# </style>
+# """
+# padding_element = folium.Element(padding_css)
+# powermap.get_root().html.add_child(padding_element)
+
+
 # Add layer control to toggle between years
-folium.LayerControl(collapsed=False).add_to(powermap)
+# folium.LayerControl(collapsed=False).add_to(powermap)
 
 
 # Save the map
